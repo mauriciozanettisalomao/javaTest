@@ -74,7 +74,7 @@ public class Parser {
 			endDateString = formatter.format(endDate);
 			// validating Start Date and End Date -- end			
 			
-			String[] springConfig = { "classpath:config/config.xml"
+			String[] springConfig = { "classpath:/config/config.xml"
 					, appName
 					, "accesslog="+accesslog
 					, "startDate="+startDateString

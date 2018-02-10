@@ -39,16 +39,19 @@
 		<property name="sql">
 			<value>
              <![CDATA[
-			      INSERT /*+ IGNORE_ROW_ON_DUPKEY_INDEX(LOG_FILE,PK1))*/  INTO log_file(log_date
+			      INSERT INTO log_file(log_date
   				                      ,ip
 					                  ,request
 					                  ,status
-					                  ,userAgent)
-						       values(TO_TIMESTAMP (:date, 'yyyy-MM-dd HH24:MI:SS.FF')
+					                  ,userAgent
+					                  ,log_event_date)
+						       values(:date
 						       		 ,:ip
 						       		 ,:request
 						       		 ,:status
-						       		 ,:userAgent)	
+						       		 ,:userAgent
+						       		 ,NOW())	
+						    ON DUPLICATE KEY UPDATE log_event_date=NOW()
 		         ]]>
 			</value>
 		</property>
@@ -62,20 +65,20 @@
 		<property name="dataSource" ref="businessDataSource"/>
 		<property name="sql">
 		  <value>
-		         <![CDATA[	SELECT IP "IP"
-							      ,NULL "DATE"
-							      ,NULL "REQUEST"
-							      ,NULL "STATUS"
-							      ,NULL "USERAGENT"
-							      ,'threshold: #{jobParameters['threshold']} '||
-							       'between #{jobParameters['startDate']} '||
-							       'and #{jobParameters['endDate']}' "DESCRIPTIONOFBLOCK"
-							 FROM (SELECT IP, COUNT(1) LIMIT
+		         <![CDATA[	SELECT TAB.IP "ip"
+							      ,NULL "date"
+							      ,NULL "request"
+							      ,NULL "status"
+							      ,NULL "userAgent"
+							      ,'threshold: #{jobParameters['threshold']} 
+							       between #{jobParameters['startDate']} 
+							       and #{jobParameters['endDate']}' as "descriptionOfBlock"
+							 FROM (SELECT IP, COUNT(1)  "LIMIT_COUNT"
 							        FROM LOG_FILE
-							       WHERE LOG_DATE >= TO_TIMESTAMP ('#{jobParameters['startDate']}', 'yyyy-MM-dd HH24:MI:SS.FF')
-							         AND LOG_DATE < TO_TIMESTAMP ('#{jobParameters['endDate']}', 'yyyy-MM-dd HH24:MI:SS.FF')
-							    GROUP BY IP)
-							 WHERE LIMIT >= #{jobParameters['threshold']}	   
+							       WHERE LOG_DATE >= STR_TO_DATE('#{jobParameters['startDate']}', '%Y-%m-%d.%H:%i:%s')
+							         AND LOG_DATE <  STR_TO_DATE('#{jobParameters['endDate']}', '%Y-%m-%d.%H:%i:%s')
+							    GROUP BY IP) TAB
+							 WHERE TAB.LIMIT_COUNT >= #{jobParameters['threshold']}	   
 		         ]]>
 		  </value>
 		</property>
@@ -101,10 +104,10 @@
              <![CDATA[
 				      INSERT INTO BLOCKED_IP(ip
 						                  	,block_description
-						                  	,event_date)
+						                  	,block_event_date)
 							       	 values(:ip
 						                  	,:descriptionOfBlock
-						                  	,sysdate)	
+						                  	,NOW())	
 		         ]]>
 			</value>
 		</property>

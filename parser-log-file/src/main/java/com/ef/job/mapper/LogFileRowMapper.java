@@ -18,7 +18,7 @@ public class LogFileRowMapper implements RowMapper<LogFile> {
 		logFile.setRequest(rs.getString("request"));
 		logFile.setStatus(rs.getString("status"));
 		logFile.setUserAgent(rs.getString("userAgent"));
-		logFile.setDescriptionOfBlock(rs.getString("DescriptionOfBlock"));
+		logFile.setDescriptionOfBlock(rs.getString("descriptionOfBlock"));
 		
 		return logFile;
 	}

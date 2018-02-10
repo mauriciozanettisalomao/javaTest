@@ -15,8 +15,8 @@ public class Local {
 									, "ParserJob"
 									, "accesslog=c:/teste"
 									, "startDate=2017-01-01.00:00:00"
-									, "endDate=2017-01-01.01:00:00"
-									, "threshold=200"};
+									, "endDate=2017-01-01.23:59:59"
+									, "threshold=5"};
 			
 			org.springframework.batch.core.launch.support.CommandLineJobRunner.main(springConfig);
 
