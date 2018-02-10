@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+	<bean id="logFile" class="com.ef.db.model.LogFile" scope="prototype" />
+	
+	<bean id="logFileReader" class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+
+		<property name="resource" value="file:#{jobParameters['accesslog']}/access.log" />
+		<property name="strict" value="false" />
+		<property name="lineMapper">
+			<bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+				<!-- split it -->
+				<property name="lineTokenizer">
+					<bean
+						class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+						<property name="delimiter" value="|"/>
+						<property name="names"
+							value="date, ip, request, status, userAgent" />
+					</bean>
+				</property>
+				<property name="fieldSetMapper">
+					<bean
+						class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+						<property name="prototypeBeanName" value="logFile" />
+					</bean>
+				</property>
+
+			</bean>
+		</property>
+
+	</bean>	
+
+	<bean id="logFiletWriter"
+		class="org.springframework.batch.item.database.JdbcBatchItemWriter"
+		scope="step">
+		<property name="dataSource" ref="businessDataSource" />
+		<property name="sql">
+			<value>
+             <![CDATA[
+			      INSERT INTO log_file(log_date
+  				                      ,ip
+					                  ,request
+					                  ,status
+					                  ,userAgent
+					                  ,log_event_date)
+						       values(:date
+						       		 ,:ip
+						       		 ,:request
+						       		 ,:status
+						       		 ,:userAgent
+						       		 ,NOW())	
+						    ON DUPLICATE KEY UPDATE log_event_date=NOW()
+		         ]]>
+			</value>
+		</property>
+		<property name="itemSqlParameterSourceProvider">
+			<bean
+				class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+		</property>
+	</bean>	
+
+	<bean id="logsLoadedReader" class="org.springframework.batch.item.database.JdbcCursorItemReader" scope="step">
+		<property name="dataSource" ref="businessDataSource"/>
+		<property name="sql">
+		  <value>
+		         <![CDATA[	SELECT TAB.IP "ip"
+							      ,NULL "date"
+							      ,NULL "request"
+							      ,NULL "status"
+							      ,NULL "userAgent"
+							      ,'threshold: #{jobParameters['threshold']} 
+							       between #{jobParameters['startDate']} 
+							       and #{jobParameters['endDate']}' as "descriptionOfBlock"
+							 FROM (SELECT IP, COUNT(1)  "LIMIT_COUNT"
+							        FROM LOG_FILE
+							       WHERE LOG_DATE >= STR_TO_DATE('#{jobParameters['startDate']}', '%Y-%m-%d.%H:%i:%s')
+							         AND LOG_DATE <  STR_TO_DATE('#{jobParameters['endDate']}', '%Y-%m-%d.%H:%i:%s')
+							    GROUP BY IP) TAB
+							 WHERE TAB.LIMIT_COUNT >= #{jobParameters['threshold']}	   
+		         ]]>
+		  </value>
+		</property>
+		<property name="rowMapper">
+        	<bean class="com.ef.job.mapper.LogFileRowMapper"/>
+    	</property>
+	</bean>	
+	
+	<bean id="logFileProcessor" class="com.ef.job.processor.LogFileProcessor" scope="step">
+		<property name="startDate" value="#{jobParameters['startDate']}" />
+		<property name="endDate" value="#{jobParameters['endDate']}" />
+		<property name="threshold" value="#{jobParameters['threshold']}" />		
+	</bean>
+
+	<bean id="logFileConsoleWriter" class="com.ef.job.writer.LogConsoleWriter" scope="prototype" />
+
+	<bean id="blockIptWriter"
+		class="org.springframework.batch.item.database.JdbcBatchItemWriter"
+		scope="step">
+		<property name="dataSource" ref="businessDataSource" />
+		<property name="sql">
+			<value>
+             <![CDATA[
+				      INSERT INTO BLOCKED_IP(ip
+						                  	,block_description
+						                  	,block_event_date)
+							       	 values(:ip
+						                  	,:descriptionOfBlock
+						                  	,NOW())	
+		         ]]>
+			</value>
+		</property>
+		<property name="itemSqlParameterSourceProvider">
+			<bean
+				class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+		</property>
+	</bean>		
+
+</beans>
